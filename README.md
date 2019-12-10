@@ -1,6 +1,6 @@
 # aws-kms-sign-csr
 
-Given an existing CSR and a keypair in AWS KMS, this script:
+Given an existing CSR (in PEM format) and a keypair in AWS KMS, this script:
 * updates the public key to the public key of the asymmetric keypair
 * signs the CSR with the private key of the asymmetric keypair
 
@@ -28,7 +28,7 @@ this script re-signs with the private key held in KMS.
 
 ## Usage
 
-    # generate a csr - the key doesn't matter as it will be replaced
+    # generate a PEM csr - the key doesn't matter as it will be replaced
     openssl req -new -newkey rsa:2048 -keyout /dev/null -nodes -out test.csr
     ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --hashalgo sha256 test.csr > new.csr
 
