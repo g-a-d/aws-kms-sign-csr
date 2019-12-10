@@ -16,13 +16,13 @@ import boto3
 
 start_marker          = '-----BEGIN CERTIFICATE REQUEST-----'
 end_marker            = '-----END CERTIFICATE REQUEST-----'
-signing_algorithm     = 'RSASSA_PKCS1_V1_5_SHA_256'
-signing_algorithm_oid = '1.2.840.113549.1.1.11'
 
-def sign_certification_request_info(kms, key_id, csr):
+def sign_certification_request_info(kms, key_id, csr, digest_algorithm, signing_algorithm):
    certificationRequestInfo = csr['certificationRequestInfo']
    der_bytes = encoder.encode(certificationRequestInfo)
-   digest = hashlib.sha256(der_bytes).digest()
+   digest = hashlib.new(digest_algorithm)
+   digest.update(der_bytes)
+   digest = digest.digest()
    response = kms.sign(KeyId=key_id, Message=digest, MessageType='DIGEST', SigningAlgorithm=signing_algorithm)
    return response['Signature']
 
@@ -33,6 +33,13 @@ def output_csr(csr):
       print(line)
    print(end_marker)
 
+def signing_algorithm(hashalgo):
+   if hashalgo == 'sha512':
+      return 'RSASSA_PKCS1_V1_5_SHA_512', '1.2.840.113549.1.1.13'
+   elif hashalgo == 'sha256':
+      return 'RSASSA_PKCS1_V1_5_SHA_256', '1.2.840.113549.1.1.11'
+   else:
+      raise Exception('unknown hash algorithm, please specify either sha256 or sha512')
 
 def main(args):
    with open(args.csr, 'r') as f:
@@ -51,11 +58,11 @@ def main(args):
    pubkey_der = response['PublicKey']
    csr['certificationRequestInfo']['subjectPKInfo'] = decoder.decode(pubkey_der, pyasn1_modules.rfc2314.SubjectPublicKeyInfo())[0]
    
-   signatureBytes = sign_certification_request_info(kms, args.keyid, csr)
+   signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo, signing_algorithm(args.hashalgo)[0])
    csr.setComponentByName('signature', univ.BitString.fromOctetString(signatureBytes))
 
    sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
-   sigAlgIdentifier.setComponentByName('algorithm', univ.ObjectIdentifier(signing_algorithm_oid))
+   sigAlgIdentifier.setComponentByName('algorithm', univ.ObjectIdentifier(signing_algorithm(args.hashalgo)[1]))
    csr.setComponentByName('signatureAlgorithm', sigAlgIdentifier)
 
    output_csr(csr)
@@ -65,6 +72,7 @@ if __name__ == '__main__':
    parser.add_argument('csr', help="Source CSR (can be signed with any key)")
    parser.add_argument('--keyid', action='store', dest='keyid', help='key ID in AWS KMS')
    parser.add_argument('--region', action='store', dest='region', help='AWS region')
+   parser.add_argument('--hashalgo', choices=['sha256', 'sha512'], default="sha256", help='hash algorithm to choose')
    args = parser.parse_args()
    main(args)
 
