@@ -22,8 +22,10 @@ this script re-signs with the private key held in KMS.
 
 ## Installation
 
+    # create a new virtualenv 
     python3 -m venv aws-kms-sign-csr
     . aws-kms-sign-csr/bin/activate
+    # install prerequisite modules
     pip3 install -r requirements.txt
 
 ## Usage
