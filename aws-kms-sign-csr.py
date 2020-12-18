@@ -38,6 +38,8 @@ def signing_algorithm(hashalgo):
       return 'RSASSA_PKCS1_V1_5_SHA_512', '1.2.840.113549.1.1.13'
    elif hashalgo == 'sha256':
       return 'RSASSA_PKCS1_V1_5_SHA_256', '1.2.840.113549.1.1.11'
+   elif hashalgo == 'sha384':
+      return 'RSASSA_PKCS1_V1_5_SHA_384', '1.2.840.113549.1.1.12'
    else:
       raise Exception('unknown hash algorithm, please specify either sha256 or sha512')
 
@@ -72,7 +74,7 @@ if __name__ == '__main__':
    parser.add_argument('csr', help="Source CSR (can be signed with any key)")
    parser.add_argument('--keyid', action='store', dest='keyid', help='key ID in AWS KMS')
    parser.add_argument('--region', action='store', dest='region', help='AWS region')
-   parser.add_argument('--hashalgo', choices=['sha256', 'sha512'], default="sha256", help='hash algorithm to choose')
+   parser.add_argument('--hashalgo', choices=['sha256', 'sha512', 'sha384'], default="sha256", help='hash algorithm to choose')
    args = parser.parse_args()
    main(args)
 
