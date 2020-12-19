@@ -40,6 +40,6 @@ The key ID can be a key ARN, an actual key ID, a key alias (prefixed with alias/
 
 ## Limitations
 
-* only supports sha256 and sha512 at time of writing
+* only supports sha256, sha384 and sha512 at time of writing
 * should have better error handling
 * should have better handling of boto profiles
