@@ -1,0 +1,10 @@
+# Intelij IDE
+.idea/
+
+# Python virtual environment
+venv
+
+# Keys, CSRs and Certs
+*.pem
+*.csr
+*.key
