@@ -30,9 +30,20 @@ this script re-signs with the private key held in KMS.
 
 ## Usage
 
+### RSA
+
     # generate a PEM csr - the key doesn't matter as it will be replaced
     openssl req -new -newkey rsa:2048 -keyout /dev/null -nodes -out test.csr
     ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --hashalgo sha256 test.csr > new.csr
+
+### ECDSA
+    # Create a fake key
+    openssl ecparam -genkey -name secp256k1 -out fake.key -genkey
+    # Create CSR from fake key
+    openssl req -new -key fake.key -out test.csr
+    # Update CSR using KMS key
+    ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --hashalgo sha256 --signalgo ECDSA test.csr > new.csr
+
 
 The script will use your existing AWS credentials: to override use environment variables per https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
 
@@ -40,6 +51,6 @@ The key ID can be a key ARN, an actual key ID, a key alias (prefixed with alias/
 
 ## Limitations
 
-* only supports sha256, sha384 and sha512 at time of writing
+* only supports RSA with sha256, sha384 and sha512 and ECDSA with sha256 at time of writing
 * should have better error handling
 * should have better handling of boto profiles
