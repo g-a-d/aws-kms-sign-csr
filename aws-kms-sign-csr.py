@@ -54,7 +54,7 @@ def signing_algorithm(hashalgo, signalgo):
     elif hashalgo == 'sha256' and signalgo == 'RSA':
         return 'RSASSA_PKCS1_V1_5_SHA_256', '1.2.840.113549.1.1.11'
     else:
-        raise Exception('unknown hash algorithm, please specify one of sha256, sha384, or sha512')
+        raise Exception('unknown hash algorithm, please specify one of sha224, sha256, sha384, or sha512')
 
 
 def main(args):
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     parser.add_argument('csr', help="Source CSR (can be signed with any key)")
     parser.add_argument('--keyid', action='store', dest='keyid', help='key ID in AWS KMS')
     parser.add_argument('--region', action='store', dest='region', help='AWS region')
-    parser.add_argument('--hashalgo', choices=['sha256', 'sha512', 'sha384'], default="sha256",
+    parser.add_argument('--hashalgo', choices=['sha224', 'sha256', 'sha512', 'sha384'], default="sha256",
                         help='hash algorithm to choose')
     parser.add_argument('--signalgo', choices=['ECDSA', 'RSA'], default="RSA", help='signing algorithm to choose')
     args = parser.parse_args()
