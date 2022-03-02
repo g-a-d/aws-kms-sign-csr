@@ -37,16 +37,24 @@ def output_csr(csr):
 
 
 def signing_algorithm(hashalgo, signalgo):
-    if hashalgo == 'sha512' and signalgo == 'RSA':
-        return 'RSASSA_PKCS1_V1_5_SHA_512', '1.2.840.113549.1.1.13'
+    # Signature Algorithm OIDs retrieved from
+    # https://www.ibm.com/docs/en/linux-on-systems?topic=linuxonibm/com.ibm.linux.z.wskc.doc/wskc_pka_pim_restrictions.html
+    if hashalgo == 'sha512' and signalgo == 'ECDSA':
+        return 'ECDSA_SHA_512', '1.2.840.10045.4.3.4'
+    elif hashalgo == 'sha384' and signalgo == 'ECDSA':
+        return 'ECDSA_SHA_384', '1.2.840.10045.4.3.3'
     elif hashalgo == 'sha256' and signalgo == 'ECDSA':
         return 'ECDSA_SHA_256', '1.2.840.10045.4.3.2'
-    elif hashalgo == 'sha256' and signalgo == 'RSA':
-        return 'RSASSA_PKCS1_V1_5_SHA_256', '1.2.840.113549.1.1.11'
+    elif hashalgo == 'sha224' and signalgo == 'ECDSA':
+        return 'ECDSA_SHA_224', '1.2.840.10045.4.3.1'
+    elif hashalgo == 'sha512' and signalgo == 'RSA':
+        return 'RSASSA_PKCS1_V1_5_SHA_512', '1.2.840.113549.1.1.13'
     elif hashalgo == 'sha384' and signalgo == 'RSA':
         return 'RSASSA_PKCS1_V1_5_SHA_384', '1.2.840.113549.1.1.12'
+    elif hashalgo == 'sha256' and signalgo == 'RSA':
+        return 'RSASSA_PKCS1_V1_5_SHA_256', '1.2.840.113549.1.1.11'
     else:
-        raise Exception('unknown hash algorithm, please specify either sha256 or sha512')
+        raise Exception('unknown hash algorithm, please specify one of sha256, sha384, or sha512')
 
 
 def main(args):
