@@ -22,7 +22,7 @@ this script re-signs with the private key held in KMS.
 
 ## Installation
 
-    # create a new virtualenv 
+    # create a new virtualenv
     python3 -m venv aws-kms-sign-csr
     . aws-kms-sign-csr/bin/activate
     # install prerequisite modules
@@ -51,6 +51,6 @@ The key ID can be a key ARN, an actual key ID, a key alias (prefixed with alias/
 
 ## Limitations
 
-* only supports RSA with sha256, sha384 and sha512 and ECDSA with sha256 at time of writing
+* only supports RSA with sha256, sha384 and sha512 and ECDSA with sha224, sha256, sha384, sha512 at time of writing
 * should have better error handling
 * should have better handling of boto profiles
