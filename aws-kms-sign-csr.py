@@ -68,6 +68,8 @@ def main(args):
     if not args.region:
         args.region = boto3.session.Session().region_name
 
+    if args.profile:
+        boto3.setup_default_session(profile_name=args.profile)
     kms = boto3.client('kms', region_name=args.region)
 
     response = kms.get_public_key(KeyId=args.keyid)
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('csr', help="Source CSR (can be signed with any key)")
     parser.add_argument('--keyid', action='store', dest='keyid', help='key ID in AWS KMS')
     parser.add_argument('--region', action='store', dest='region', help='AWS region')
+    parser.add_argument('--profile', action='store', dest='profile', help='AWS profile')
     parser.add_argument('--hashalgo', choices=['sha224', 'sha256', 'sha512', 'sha384'], default="sha256",
                         help='hash algorithm to choose')
     parser.add_argument('--signalgo', choices=['ECDSA', 'RSA'], default="RSA", help='signing algorithm to choose')
