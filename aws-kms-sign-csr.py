@@ -117,9 +117,7 @@ def main(args):
     signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo, algorithm_name)
     csr.setComponentByName('signature', univ.BitString.fromOctetString(signatureBytes))
 
-    sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
-    sigAlgIdentifier.setComponentByName('algorithm',
-                                        univ.ObjectIdentifier(signing_algorithm(args.hashalgo, args.signalgo)[1]))
+    sigAlgIdentifier = signature_algorithm_identifier(args.hashalgo, args.signalgo)
     csr.setComponentByName('signatureAlgorithm', sigAlgIdentifier)
 
     output_csr(csr)
