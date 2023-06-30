@@ -97,6 +97,6 @@ if __name__ == '__main__':
     parser.add_argument('--profile', action='store', dest='profile', help='AWS profile')
     parser.add_argument('--hashalgo', choices=['sha224', 'sha256', 'sha512', 'sha384'], default="sha256",
                         help='hash algorithm to choose')
-    parser.add_argument('--signalgo', choices=['ECDSA', 'RSA'], default="RSA", help='signing algorithm to choose')
+    parser.add_argument('--signalgo', choices=['ECDSA', 'RSA', 'RSAPSS'], default="RSA", help='signing algorithm to choose')
     args = parser.parse_args()
     main(args)
