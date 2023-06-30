@@ -84,8 +84,9 @@ def main(args):
     csr['certificationRequestInfo']['subjectPKInfo'] = \
         decoder.decode(pubkey_der, pyasn1_modules.rfc2314.SubjectPublicKeyInfo())[0]
 
-    signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo,
-                                                     signing_algorithm(args.hashalgo, args.signalgo)[0])
+    algorithm_name, algorithm_identifier = signing_algorithm(args.hashalgo, args.signalgo)
+
+    signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo, algorithm_name)
     csr.setComponentByName('signature', univ.BitString.fromOctetString(signatureBytes))
 
     sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
