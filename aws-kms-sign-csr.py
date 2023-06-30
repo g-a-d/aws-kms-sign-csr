@@ -40,6 +40,7 @@ def output_csr(csr):
 def signing_algorithm(hashalgo, signalgo):
     # Signature Algorithm OIDs retrieved from
     # https://www.ibm.com/docs/en/linux-on-systems?topic=linuxonibm/com.ibm.linux.z.wskc.doc/wskc_pka_pim_restrictions.html
+    # OIDs for RSASSA_PSS retrieved from
     # https://datatracker.ietf.org/doc/html/rfc7518#appendix-A.1
     if hashalgo == 'sha512' and signalgo == 'ECDSA':
         return 'ECDSA_SHA_512', '1.2.840.10045.4.3.4'
@@ -72,6 +73,9 @@ def signature_algorithm_identifier(hashalgo, signalgo):
         sigAlgIdentifier = pyasn1_modules.rfc5280.AlgorithmIdentifier()
         sigAlgIdentifier.setComponentByName('algorithm', algorithmIdentifier)
 
+        # Ref. PKCS #1 v2.2 (RFC 8017) Section 9.1
+        # https://datatracker.ietf.org/doc/html/rfc8017#section-9.1
+        # Typical salt lengths could be hLen and 0.
         if hashalgo == 'sha512':
             sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA512_Params
             sigAlgParams.setComponentByName('saltLength', 512 / 8)
