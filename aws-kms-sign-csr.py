@@ -6,6 +6,7 @@ python script to re-sign an existing CSR with an asymmetric keypair held in AWS 
 from pyasn1.codec.der import decoder, encoder
 from pyasn1.type import univ
 import pyasn1_modules.pem
+import pyasn1_modules.rfc4055
 import pyasn1_modules.rfc2986
 import pyasn1_modules.rfc2314
 import hashlib
@@ -39,6 +40,8 @@ def output_csr(csr):
 def signing_algorithm(hashalgo, signalgo):
     # Signature Algorithm OIDs retrieved from
     # https://www.ibm.com/docs/en/linux-on-systems?topic=linuxonibm/com.ibm.linux.z.wskc.doc/wskc_pka_pim_restrictions.html
+    # OIDs for RSASSA_PSS retrieved from
+    # https://datatracker.ietf.org/doc/html/rfc7518#appendix-A.1
     if hashalgo == 'sha512' and signalgo == 'ECDSA':
         return 'ECDSA_SHA_512', '1.2.840.10045.4.3.4'
     elif hashalgo == 'sha384' and signalgo == 'ECDSA':
@@ -53,8 +56,44 @@ def signing_algorithm(hashalgo, signalgo):
         return 'RSASSA_PKCS1_V1_5_SHA_384', '1.2.840.113549.1.1.12'
     elif hashalgo == 'sha256' and signalgo == 'RSA':
         return 'RSASSA_PKCS1_V1_5_SHA_256', '1.2.840.113549.1.1.11'
+    elif hashalgo == 'sha512' and signalgo == 'RSAPSS':
+        return 'RSASSA_PSS_SHA_512', '1.2.840.113549.1.1.10'
+    elif hashalgo == 'sha384' and signalgo == 'RSAPSS':
+        return 'RSASSA_PSS_SHA_384', '1.2.840.113549.1.1.10'
+    elif hashalgo == 'sha256' and signalgo == 'RSAPSS':
+        return 'RSASSA_PSS_SHA_256', '1.2.840.113549.1.1.10'
     else:
         raise Exception('unknown hash algorithm, please specify one of sha224, sha256, sha384, or sha512')
+
+
+def signature_algorithm_identifier(hashalgo, signalgo):
+    algorithmName, algorithmIdentifier = signing_algorithm(hashalgo, signalgo)
+
+    if algorithmName.startswith('RSASSA_PSS'):
+        sigAlgIdentifier = pyasn1_modules.rfc5280.AlgorithmIdentifier()
+        sigAlgIdentifier.setComponentByName('algorithm', algorithmIdentifier)
+
+        # Ref. PKCS #1 v2.2 (RFC 8017) Section 9.1
+        # https://datatracker.ietf.org/doc/html/rfc8017#section-9.1
+        # Typical salt lengths could be hLen and 0.
+        if hashalgo == 'sha512':
+            sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA512_Params
+            sigAlgParams.setComponentByName('saltLength', 512 / 8)
+        elif hashalgo == 'sha384':
+            sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA384_Params
+            sigAlgParams.setComponentByName('saltLength', 384 / 8)
+        elif hashalgo == 'sha256':
+            sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA256_Params
+            sigAlgParams.setComponentByName('saltLength', 256 / 8)
+        else:
+            raise Exception('unknown hash algorithm, please specify one of sha256, sha384, or sha512')
+
+        sigAlgIdentifier.setComponentByName('parameters', sigAlgParams)
+        return sigAlgIdentifier
+    else:
+        sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
+        sigAlgIdentifier.setComponentByName('algorithm', univ.ObjectIdentifier(algorithmIdentifier))
+        return sigAlgIdentifier
 
 
 def main(args):
@@ -77,13 +116,12 @@ def main(args):
     csr['certificationRequestInfo']['subjectPKInfo'] = \
         decoder.decode(pubkey_der, pyasn1_modules.rfc2314.SubjectPublicKeyInfo())[0]
 
-    signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo,
-                                                     signing_algorithm(args.hashalgo, args.signalgo)[0])
+    algorithm_name, algorithm_identifier = signing_algorithm(args.hashalgo, args.signalgo)
+
+    signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo, algorithm_name)
     csr.setComponentByName('signature', univ.BitString.fromOctetString(signatureBytes))
 
-    sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
-    sigAlgIdentifier.setComponentByName('algorithm',
-                                        univ.ObjectIdentifier(signing_algorithm(args.hashalgo, args.signalgo)[1]))
+    sigAlgIdentifier = signature_algorithm_identifier(args.hashalgo, args.signalgo)
     csr.setComponentByName('signatureAlgorithm', sigAlgIdentifier)
 
     output_csr(csr)
@@ -97,6 +135,6 @@ if __name__ == '__main__':
     parser.add_argument('--profile', action='store', dest='profile', help='AWS profile')
     parser.add_argument('--hashalgo', choices=['sha224', 'sha256', 'sha512', 'sha384'], default="sha256",
                         help='hash algorithm to choose')
-    parser.add_argument('--signalgo', choices=['ECDSA', 'RSA'], default="RSA", help='signing algorithm to choose')
+    parser.add_argument('--signalgo', choices=['ECDSA', 'RSA', 'RSAPSS'], default="RSA", help='signing algorithm to choose')
     args = parser.parse_args()
     main(args)
