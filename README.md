@@ -30,11 +30,17 @@ this script re-signs with the private key held in KMS.
 
 ## Usage
 
-### RSA
+### RSA(RSASSA-PKCS1-v1_5)
 
     # generate a PEM csr - the key doesn't matter as it will be replaced
     openssl req -new -newkey rsa:2048 -keyout /dev/null -nodes -out test.csr
     ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --hashalgo sha256 test.csr > new.csr
+
+### RSA(RSASSA-PSS)
+
+    # generate a PEM csr - the key doesn't matter as it will be replaced
+    openssl req -newkey rsa:2048 -sha256 -sigopt rsa_padding_mode:pss -nodes -keyout /dev/null -out test.csr
+    ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --hashalgo sha256 --signalgo RSAPSS test.csr > new.csr
 
 ### ECDSA
     # Create a fake key
