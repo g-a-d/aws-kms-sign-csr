@@ -6,6 +6,7 @@ python script to re-sign an existing CSR with an asymmetric keypair held in AWS 
 from pyasn1.codec.der import decoder, encoder
 from pyasn1.type import univ
 import pyasn1_modules.pem
+import pyasn1_modules.rfc4055
 import pyasn1_modules.rfc2986
 import pyasn1_modules.rfc2314
 import hashlib
@@ -62,6 +63,33 @@ def signing_algorithm(hashalgo, signalgo):
         return 'RSASSA_PSS_SHA_256', '1.2.840.113549.1.1.10'
     else:
         raise Exception('unknown hash algorithm, please specify one of sha224, sha256, sha384, or sha512')
+
+
+def signature_algorithm_identifier(hashalgo, signalgo):
+    algorithmName, algorithmIdentifier = signing_algorithm(hashalgo, signalgo)
+
+    if algorithmName.startswith('RSASSA_PSS'):
+        sigAlgIdentifier = pyasn1_modules.rfc5280.AlgorithmIdentifier()
+        sigAlgIdentifier.setComponentByName('algorithm', algorithmIdentifier)
+
+        if hashalgo == 'sha512':
+            sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA512_Params
+            sigAlgParams.setComponentByName('saltLength', 512 / 8)
+        elif hashalgo == 'sha384':
+            sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA384_Params
+            sigAlgParams.setComponentByName('saltLength', 384 / 8)
+        elif hashalgo == 'sha256':
+            sigAlgParams = pyasn1_modules.rfc4055.rSASSA_PSS_SHA256_Params
+            sigAlgParams.setComponentByName('saltLength', 256 / 8)
+        else:
+            raise Exception('unknown hash algorithm, please specify one of sha256, sha384, or sha512')
+
+        sigAlgIdentifier.setComponentByName('parameters', sigAlgParams)
+        return sigAlgIdentifier
+    else:
+        sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
+        sigAlgIdentifier.setComponentByName('algorithm', univ.ObjectIdentifier(algorithmIdentifier))
+        return sigAlgIdentifier
 
 
 def main(args):
