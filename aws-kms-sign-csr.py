@@ -17,6 +17,13 @@ import boto3
 start_marker = '-----BEGIN CERTIFICATE REQUEST-----'
 end_marker = '-----END CERTIFICATE REQUEST-----'
 
+# OIDs from NIST CSOR / draft-ietf-lamps-dilithium-certificates
+ML_DSA_SIGNATURE_OIDS = {
+    'ML_DSA_44': '2.16.840.1.101.3.4.3.17',
+    'ML_DSA_65': '2.16.840.1.101.3.4.3.18',
+    'ML_DSA_87': '2.16.840.1.101.3.4.3.19',
+}
+
 
 def sign_certification_request_info(kms, key_id, csr, digest_algorithm, signing_algorithm):
     certificationRequestInfo = csr['certificationRequestInfo']
@@ -25,6 +32,23 @@ def sign_certification_request_info(kms, key_id, csr, digest_algorithm, signing_
     digest.update(der_bytes)
     digest = digest.digest()
     response = kms.sign(KeyId=key_id, Message=digest, MessageType='DIGEST', SigningAlgorithm=signing_algorithm)
+    return response['Signature']
+
+
+def compute_external_mu(message_bytes, public_key_octets):
+    # FIPS 204 section 6.2, with an empty context string (as used by AWS KMS's
+    # EXTERNAL_MU examples): mu = SHAKE256(SHAKE256(pk, 64) || 0x00 || 0x00 || M, 64)
+    tr = hashlib.shake_256(public_key_octets).digest(64)
+    prefix = bytes([0, 0])  # domain separator (0) || context length (0, empty context)
+    return hashlib.shake_256(tr + prefix + message_bytes).digest(64)
+
+
+def sign_certification_request_info_mldsa(kms, key_id, csr, public_key_octets):
+    certificationRequestInfo = csr['certificationRequestInfo']
+    der_bytes = encoder.encode(certificationRequestInfo)
+    mu = compute_external_mu(der_bytes, public_key_octets)
+    response = kms.sign(KeyId=key_id, Message=mu, MessageType='EXTERNAL_MU',
+                        SigningAlgorithm='ML_DSA_SHAKE_256')
     return response['Signature']
 
 
@@ -74,16 +98,22 @@ def main(args):
 
     response = kms.get_public_key(KeyId=args.keyid)
     pubkey_der = response['PublicKey']
-    csr['certificationRequestInfo']['subjectPKInfo'] = \
-        decoder.decode(pubkey_der, pyasn1_modules.rfc2314.SubjectPublicKeyInfo())[0]
+    pubkey_info = decoder.decode(pubkey_der, pyasn1_modules.rfc2314.SubjectPublicKeyInfo())[0]
+    csr['certificationRequestInfo']['subjectPKInfo'] = pubkey_info
 
-    signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo,
-                                                     signing_algorithm(args.hashalgo, args.signalgo)[0])
+    if args.signalgo == 'ML-DSA':
+        public_key_octets = pubkey_info['subjectPublicKey'].asOctets()
+        signatureBytes = sign_certification_request_info_mldsa(kms, args.keyid, csr, public_key_octets)
+        sigAlgOid = ML_DSA_SIGNATURE_OIDS[response['KeySpec']]
+    else:
+        signatureBytes = sign_certification_request_info(kms, args.keyid, csr, args.hashalgo,
+                                                         signing_algorithm(args.hashalgo, args.signalgo)[0])
+        sigAlgOid = signing_algorithm(args.hashalgo, args.signalgo)[1]
+
     csr.setComponentByName('signature', univ.BitString.fromOctetString(signatureBytes))
 
     sigAlgIdentifier = pyasn1_modules.rfc2314.SignatureAlgorithmIdentifier()
-    sigAlgIdentifier.setComponentByName('algorithm',
-                                        univ.ObjectIdentifier(signing_algorithm(args.hashalgo, args.signalgo)[1]))
+    sigAlgIdentifier.setComponentByName('algorithm', univ.ObjectIdentifier(sigAlgOid))
     csr.setComponentByName('signatureAlgorithm', sigAlgIdentifier)
 
     output_csr(csr)
@@ -96,7 +126,8 @@ if __name__ == '__main__':
     parser.add_argument('--region', action='store', dest='region', help='AWS region')
     parser.add_argument('--profile', action='store', dest='profile', help='AWS profile')
     parser.add_argument('--hashalgo', choices=['sha224', 'sha256', 'sha512', 'sha384'], default="sha256",
-                        help='hash algorithm to choose')
-    parser.add_argument('--signalgo', choices=['ECDSA', 'RSA'], default="RSA", help='signing algorithm to choose')
+                        help='hash algorithm to choose (ignored for --signalgo ML-DSA)')
+    parser.add_argument('--signalgo', choices=['ECDSA', 'RSA', 'ML-DSA'], default="RSA",
+                        help='signing algorithm to choose')
     args = parser.parse_args()
     main(args)

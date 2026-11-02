@@ -44,6 +44,19 @@ this script re-signs with the private key held in KMS.
     # Update CSR using KMS key
     ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --hashalgo sha256 --signalgo ECDSA test.csr > new.csr
 
+### ML-DSA
+
+    # Create a fake key
+    openssl req -new -newkey rsa:2048 -keyout /dev/null -nodes -out test.csr
+    # Update CSR using KMS key (--hashalgo is ignored for ML-DSA)
+    ./aws-kms-sign-csr.py --region eu-west-1 --keyid alias/mykeyalias --signalgo ML-DSA test.csr > new.csr
+
+ML-DSA is a post-quantum signature algorithm ([FIPS 204](https://csrc.nist.gov/pubs/fips/204/final)). AWS KMS
+signs ML-DSA messages larger than 4KB using a 64-byte message representative, `mu`, which this script computes
+locally (per FIPS 204 section 6.2) and sends to KMS using the `EXTERNAL_MU` message type with the
+`ML_DSA_SHAKE_256` signing algorithm. The CSR's signature algorithm OID is chosen automatically based on the
+KMS key's spec (`ML_DSA_44`, `ML_DSA_65`, or `ML_DSA_87`). See the
+[AWS KMS ML-DSA documentation](https://docs.aws.amazon.com/kms/latest/developerguide/mldsa.html) for more details.
 
 The script will use your existing AWS credentials: to override use environment variables per https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
 
@@ -51,6 +64,6 @@ The key ID can be a key ARN, an actual key ID, a key alias (prefixed with alias/
 
 ## Limitations
 
-* only supports RSA with sha256, sha384 and sha512 and ECDSA with sha224, sha256, sha384, sha512 at time of writing
+* only supports RSA with sha256, sha384 and sha512, ECDSA with sha224, sha256, sha384, sha512, and ML-DSA (ML_DSA_44/65/87) at time of writing
 * should have better error handling
 * should have better handling of boto profiles
